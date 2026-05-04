@@ -38,6 +38,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = AecConfig {
         sample_rate: SAMPLE_RATE,
         channels: Channels::Mono,
+        enable_advanced_ducking: true,
+        ducking_level: DuckingLevel::Min,
+        voice_processing_enable_agc: Some(false),
+        voice_processing_bypass: None,
     };
 
     let handle = CaptureHandle::new(config)?;

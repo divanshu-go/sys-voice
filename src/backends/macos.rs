@@ -7,7 +7,7 @@ use objc2_audio_toolbox::{
     AudioOutputUnitStop, AudioUnit, AudioUnitGetProperty, AudioUnitInitialize, AudioUnitRender,
     AudioUnitSetProperty, AudioUnitUninitialize,
     AUVoiceIOOtherAudioDuckingConfiguration, AUVoiceIOOtherAudioDuckingLevel,
-    kAUVoiceIOProperty_OtherAudioDuckingConfiguration,
+    kAUVoiceIOProperty_BypassVoiceProcessing, kAUVoiceIOProperty_OtherAudioDuckingConfiguration,
     kAUVoiceIOProperty_VoiceProcessingEnableAGC,
     kAudioOutputUnitProperty_EnableIO, kAudioOutputUnitProperty_SetInputCallback,
     kAudioUnitManufacturer_Apple, kAudioUnitProperty_MaximumFramesPerSlice,
@@ -260,7 +260,17 @@ pub fn create_backend(
                 "failed to configure VoiceProcessingIO AGC",
             )?;
         }
-    }
+        if let Some(bypass) = config.voice_processing_bypass {
+            let bypass_enabled: u32 = if bypass { 1 } else { 0 };
+            set_property(
+                audio_unit,
+                kAUVoiceIOProperty_BypassVoiceProcessing,
+                kAudioUnitScope_Global,
+                OUTPUT_BUS,
+                &bypass_enabled,
+                "failed to configure VoiceProcessingIO bypass",
+            )?
+        }    }
 
     let native_format = unsafe {
         get_property::<AudioStreamBasicDescription>(

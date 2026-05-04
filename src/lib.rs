@@ -39,6 +39,10 @@ pub struct AecConfig {
     /// Optional override for VoiceProcessingIO automatic gain control (macOS).
     /// `None` keeps the system/default AudioUnit behavior.
     pub voice_processing_enable_agc: Option<bool>,
+    /// Optional override to bypass VoiceProcessingIO processing (macOS).
+    /// `None` keeps the system/default AudioUnit behavior.
+    /// When true, voice processing (AEC, AGC) is disabled.
+    pub voice_processing_bypass: Option<bool>,
 }
 
 impl Default for AecConfig {
@@ -49,6 +53,7 @@ impl Default for AecConfig {
             enable_advanced_ducking: false,
             ducking_level: DuckingLevel::Default,
             voice_processing_enable_agc: None,
+            voice_processing_bypass: None,
         }
     }
 }
