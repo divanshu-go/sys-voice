@@ -12,12 +12,33 @@ pub enum Channels {
     Stereo,
 }
 
+/// VoiceProcessingIO ducking level for non-voice audio during capture.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum DuckingLevel {
+    /// System default ducking behavior.
+    #[default]
+    Default,
+    /// Minimal attenuation of other audio.
+    Min,
+    /// Medium attenuation of other audio.
+    Mid,
+    /// Maximum attenuation of other audio.
+    Max,
+}
+
 #[derive(Debug, Clone)]
 pub struct AecConfig {
     /// Target sample rate in Hz (typically 48000)
     pub sample_rate: u32,
     /// Output channels (stereo = duplicated mono from AEC)
     pub channels: Channels,
+    /// Enable advanced ducking behavior (macOS VoiceProcessingIO).
+    pub enable_advanced_ducking: bool,
+    /// Target ducking level for other audio (macOS VoiceProcessingIO).
+    pub ducking_level: DuckingLevel,
+    /// Optional override for VoiceProcessingIO automatic gain control (macOS).
+    /// `None` keeps the system/default AudioUnit behavior.
+    pub voice_processing_enable_agc: Option<bool>,
 }
 
 impl Default for AecConfig {
@@ -25,6 +46,9 @@ impl Default for AecConfig {
         Self {
             sample_rate: 48000,
             channels: Channels::Mono,
+            enable_advanced_ducking: false,
+            ducking_level: DuckingLevel::Default,
+            voice_processing_enable_agc: None,
         }
     }
 }
@@ -89,7 +113,8 @@ impl CaptureHandle {
         }
 
         let (backend_tx, backend_rx) = flume::bounded::<Vec<f32>>(32);
-        let (native_rate, _buffer_size, backend_handle) = backends::create_backend(backend_tx)?;
+        let (native_rate, _buffer_size, backend_handle) =
+            backends::create_backend(backend_tx, config.clone())?;
 
         let (public_tx, public_rx) = flume::bounded::<Result<Vec<f32>, AecError>>(32);
         let target_rate = config.sample_rate;

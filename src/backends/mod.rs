@@ -14,7 +14,7 @@ mod linux;
 mod android;
 
 use crate::resampler::Resampler;
-use crate::AecError;
+use crate::{AecConfig, AecError};
 
 /// Handle for sending audio to the backend for playback.
 /// Audio played through this handle goes through the same engine as capture,
@@ -104,12 +104,13 @@ fn resample_chunk(resampler: &mut Option<Resampler>, chunk: Vec<f32>) -> Vec<f32
 /// Returns (sample_rate, buffer_size, handle). Task stops when sender disconnects.
 pub(crate) fn create_backend(
     sender: flume::Sender<Vec<f32>>,
+    config: AecConfig,
 ) -> Result<(u32, usize, BackendHandle), AecError> {
     let (playback_tx, playback_rx) = flume::bounded::<PlaybackCommand>(16);
 
     #[cfg(target_os = "macos")]
     {
-        let (rate, size) = macos::create_backend(sender, playback_rx)?;
+        let (rate, size) = macos::create_backend(sender, playback_rx, config)?;
         let handle = BackendHandle {
             playback_tx,
             native_sample_rate: rate,
@@ -165,7 +166,7 @@ pub(crate) fn create_backend(
         target_os = "android"
     )))]
     {
-        let _ = (sender, playback_rx);
+        let _ = (sender, playback_rx, config);
         Err(AecError::AecNotSupported)
     }
 }

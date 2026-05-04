@@ -1,11 +1,14 @@
 use crate::backends::PlaybackCommand;
-use crate::AecError;
+use crate::{AecConfig, AecError, DuckingLevel};
 use flume::{Receiver, Sender};
 use objc2_audio_toolbox::{
     AURenderCallbackStruct, AudioComponentDescription, AudioComponentFindNext,
     AudioComponentInstanceDispose, AudioComponentInstanceNew, AudioOutputUnitStart,
     AudioOutputUnitStop, AudioUnit, AudioUnitGetProperty, AudioUnitInitialize, AudioUnitRender,
     AudioUnitSetProperty, AudioUnitUninitialize,
+    AUVoiceIOOtherAudioDuckingConfiguration, AUVoiceIOOtherAudioDuckingLevel,
+    kAUVoiceIOProperty_OtherAudioDuckingConfiguration,
+    kAUVoiceIOProperty_VoiceProcessingEnableAGC,
     kAudioOutputUnitProperty_EnableIO, kAudioOutputUnitProperty_SetInputCallback,
     kAudioUnitManufacturer_Apple, kAudioUnitProperty_MaximumFramesPerSlice,
     kAudioUnitProperty_SetRenderCallback, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Global,
@@ -25,6 +28,15 @@ use std::sync::{Arc, Mutex};
 
 const INPUT_BUS: u32 = 1;
 const OUTPUT_BUS: u32 = 0;
+
+fn to_ducking_level(level: DuckingLevel) -> AUVoiceIOOtherAudioDuckingLevel {
+    match level {
+        DuckingLevel::Default => AUVoiceIOOtherAudioDuckingLevel::Default,
+        DuckingLevel::Min => AUVoiceIOOtherAudioDuckingLevel::Min,
+        DuckingLevel::Mid => AUVoiceIOOtherAudioDuckingLevel::Mid,
+        DuckingLevel::Max => AUVoiceIOOtherAudioDuckingLevel::Max,
+    }
+}
 
 #[derive(Copy, Clone)]
 struct AudioUnitHandle(AudioUnit);
@@ -178,6 +190,7 @@ unsafe extern "C-unwind" fn render_callback(
 pub fn create_backend(
     public_sender: Sender<Vec<f32>>,
     playback_rx: Receiver<PlaybackCommand>,
+    config: AecConfig,
 ) -> Result<(u32, usize), AecError> {
     let (callback_tx, callback_rx) = flume::bounded::<Vec<f32>>(32);
 
@@ -220,6 +233,33 @@ pub fn create_backend(
             &enable_io,
             "failed to enable output IO",
         )?;
+
+        if config.enable_advanced_ducking || config.ducking_level != DuckingLevel::Default {
+            let ducking_config = AUVoiceIOOtherAudioDuckingConfiguration {
+                mEnableAdvancedDucking: if config.enable_advanced_ducking { 1 } else { 0 },
+                mDuckingLevel: to_ducking_level(config.ducking_level),
+            };
+            set_property(
+                audio_unit,
+                kAUVoiceIOProperty_OtherAudioDuckingConfiguration,
+                kAudioUnitScope_Global,
+                OUTPUT_BUS,
+                &ducking_config,
+                "failed to configure VoiceProcessingIO ducking (requires supported macOS runtime)",
+            )?;
+        }
+
+        if let Some(enable_agc) = config.voice_processing_enable_agc {
+            let agc_enabled: u32 = if enable_agc { 1 } else { 0 };
+            set_property(
+                audio_unit,
+                kAUVoiceIOProperty_VoiceProcessingEnableAGC,
+                kAudioUnitScope_Global,
+                OUTPUT_BUS,
+                &agc_enabled,
+                "failed to configure VoiceProcessingIO AGC",
+            )?;
+        }
     }
 
     let native_format = unsafe {
