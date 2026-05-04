@@ -11,7 +11,7 @@ use std::time::Duration;
 use sys_voice::{AecConfig, CaptureHandle, Channels, DuckingLevel};
 
 const SAMPLE_RATE: u32 = 48000;
-const DURATION_SECS: u64 = 30;
+const DURATION_SECS: u64 = 15;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -43,6 +43,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         enable_advanced_ducking: true,
         ducking_level: DuckingLevel::Min,
         voice_processing_enable_agc: Some(false),
+        voice_processing_bypass: None,
+        input_device_id: None,
+        output_device_id: None,
     };
 
     let handle = CaptureHandle::new(config)?;
