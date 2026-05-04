@@ -20,6 +20,7 @@ tracing = "0.1"
 objc2-audio-toolbox = "0.3.2"
 objc2-core-audio-types = "0.3.2"
 objc2-core-foundation = "0.3.2"
+objc2-core-audio = "0.3.2"
 
 [target.'cfg(target_os = "ios")'.dependencies]
 # iOS requires objc bridging for AVAudioEngine - manual bindings

@@ -26,6 +26,17 @@ pub enum DuckingLevel {
     Max,
 }
 
+/// Basic audio device information.
+#[derive(Debug, Clone)]
+pub struct AudioDeviceInfo {
+    pub id: u32,
+    pub name: String,
+    pub is_input: bool,
+    pub is_output: bool,
+    pub sample_rate: f64,
+    pub channel_count: u32,
+}
+
 #[derive(Debug, Clone)]
 pub struct AecConfig {
     /// Target sample rate in Hz (typically 48000)
@@ -43,6 +54,10 @@ pub struct AecConfig {
     /// `None` keeps the system/default AudioUnit behavior.
     /// When true, voice processing (AEC, AGC) is disabled.
     pub voice_processing_bypass: Option<bool>,
+    /// Optional input device ID to use (None = system default).
+    pub input_device_id: Option<u32>,
+    /// Optional output device ID to use (None = system default).
+    pub output_device_id: Option<u32>,
 }
 
 impl Default for AecConfig {
@@ -54,6 +69,8 @@ impl Default for AecConfig {
             ducking_level: DuckingLevel::Default,
             voice_processing_enable_agc: None,
             voice_processing_bypass: None,
+            input_device_id: None,
+            output_device_id: None,
         }
     }
 }
@@ -205,6 +222,11 @@ impl CaptureHandle {
 }
 
 // Drop on CaptureHandle drops backend, which stops capture via RAII
+
+/// Return available audio devices on the host.
+pub fn available_audio_devices() -> Result<Vec<AudioDeviceInfo>, AecError> {
+    backends::list_audio_devices()
+}
 
 fn process_audio_chunk(
     samples: Vec<f32>,

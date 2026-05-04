@@ -29,6 +29,10 @@ use std::sync::{Arc, Mutex};
 const INPUT_BUS: u32 = 1;
 const OUTPUT_BUS: u32 = 0;
 
+pub fn list_audio_devices() -> Result<Vec<crate::AudioDeviceInfo>, crate::AecError> {
+    crate::backends::macos_devices::list_audio_devices()
+}
+
 fn to_ducking_level(level: DuckingLevel) -> AUVoiceIOOtherAudioDuckingLevel {
     match level {
         DuckingLevel::Default => AUVoiceIOOtherAudioDuckingLevel::Default,
@@ -214,6 +218,33 @@ pub fn create_backend(
     let mut audio_unit = ptr::null_mut();
     let status = unsafe { AudioComponentInstanceNew(component, NonNull::from(&mut audio_unit)) };
     os_status_to_result(status, "failed to create VoiceProcessingIO")?;
+
+    // If user provided explicit device IDs, set them before enabling IO
+    if let Some(in_dev) = config.input_device_id {
+        unsafe {
+            let _ = set_property(
+                audio_unit,
+                // property expects AudioDeviceID
+                objc2_audio_toolbox::kAudioOutputUnitProperty_CurrentDevice,
+                kAudioUnitScope_Global,
+                0,
+                &in_dev,
+                "failed to set input device",
+            );
+        }
+    }
+    if let Some(out_dev) = config.output_device_id {
+        unsafe {
+            let _ = set_property(
+                audio_unit,
+                objc2_audio_toolbox::kAudioOutputUnitProperty_CurrentDevice,
+                kAudioUnitScope_Global,
+                0,
+                &out_dev,
+                "failed to set output device",
+            );
+        }
+    }
 
     let enable_io: u32 = 1;
     unsafe {

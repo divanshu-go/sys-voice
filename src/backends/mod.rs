@@ -1,6 +1,9 @@
 #[cfg(target_os = "macos")]
 mod macos;
 
+#[cfg(target_os = "macos")]
+pub mod macos_devices;
+
 #[cfg(target_os = "ios")]
 mod ios;
 
@@ -167,6 +170,19 @@ pub(crate) fn create_backend(
     )))]
     {
         let _ = (sender, playback_rx, config);
+        Err(AecError::AecNotSupported)
+    }
+}
+
+/// List audio devices available on the host (IDs, names, capabilities).
+pub fn list_audio_devices() -> Result<Vec<crate::AudioDeviceInfo>, AecError> {
+    #[cfg(target_os = "macos")]
+    {
+        return macos::list_audio_devices();
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = ();
         Err(AecError::AecNotSupported)
     }
 }
